@@ -1,0 +1,101 @@
+---
+title: "hm8"
+output: pdf_document
+---
+
+```{r}
+#Ning Liang
+#GSI : Ziping Xu
+library(MASS)
+library(tree)
+set.seed(6789)
+crab <- split.data.frame(crabs,crabs$sex)
+
+female <-crab$F
+male <- crab$M
+train_id_F <- sample(nrow(female),
+                     floor(0.8*(nrow(female))))
+train_id_M <- sample(nrow(male),
+                     floor(0.8*(nrow(male))))
+train_F <- female[train_id_F,]
+train_M <- male[train_id_M,]
+test_F <- female[-train_id_F,]
+test_M <- male[-train_id_M,]
+train <- rbind(train_F,train_M)
+test <- rbind(test_F, test_M)
+
+
+tree.crab = tree(sp~.-index, train)
+cv.crab = cv.tree(tree.crab, FUN = prune.misclass)
+cv.crab
+
+```
+The smallest size which is not more than 10 while having the least $dev/length(train) is 8. Therefore:
+```{r}
+prune.crab = prune.misclass(tree.crab, best = 8)
+plot(prune.crab)
+text(prune.crab,pretty = 0)
+```
+```{r}
+tree.pred_test = predict(prune.crab, test,type = "class")
+table(tree.pred_test,test$sp)
+tree.pred_train = predict(prune.crab, train,type = "class")
+table(tree.pred_train,train$sp)
+```
+(2+3)/40 =12.5%
+
+11/160 = 6.875%
+
+
+(b)
+```{r}
+library(randomForest)
+set.seed(5678)
+rf.crab = randomForest(sp~.- index, data = train, mtry = 5, ntree = 1000, importance=TRUE)
+rf.pred_train = predict(rf.crab, train)
+rf.pred_test = predict(rf.crab, test)
+table(rf.pred_test,test$sp)
+table(rf.pred_train,train$sp)
+```
+testMSE = 7/40 = 17.5%
+
+trainMSE = 0
+```{r}
+varImpPlot(rf.crab)
+```
+According to the training MSE and the testing MSE, random forest does a similar job(even worse if we only assess them by testing mse) compared to a single tree.
+
+(c)
+```{r}
+library("gbm")
+set.seed(5678)
+train$sp01 = ifelse(train$sex == "M", 1,0)
+test$sp01 = ifelse(test$sex == "M",1,0)
+train_err_ada = rep(0,1000)
+test_err_ada = rep(0,1000)
+
+for (i in 1:1000){
+ada.crab = gbm(sp01~ FL + RW + CL + CW + BD, train, distribution = "adaboost",n.trees = i)
+probs_train = predict(ada.crab, train, n.trees = i, type = "response")
+pred_train = ifelse(probs_train > 0.5, 1, 0)
+probs_test = predict(ada.crab, test, n.trees = i, type = "response")
+pred_test = ifelse(probs_test > 0.5, 1, 0)
+train_err_ada[i] =  mean(pred_train!=train$sp01)
+test_err_ada[i] =  mean(pred_test!=test$sp01)
+}
+par(mfcol = c(2,1))
+plot(c(1:1000),train_err_ada)
+plot(c(1:1000),test_err_ada)
+```
+
+```{r}
+m = which(test_err_ada == min(test_err_ada))
+min(test_err_ada)
+m
+min(m)
+```
+We can take the smallest m as shown above which reaches the lowest testing mse.(m changes when outputing the pdf)
+
+(d)
+The result is consistent accross methods since there is no fundamental changes in testing results. Among all three methods, the adaboosting method gives us the lowest test mse with m = 158.
+The reason why Random forest is not well performed may be that we greedy choose 1000 trees. We can see that for m = 1000, adaboost is not at its optimum.

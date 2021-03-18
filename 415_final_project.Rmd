@@ -1,0 +1,333 @@
+---
+title: "finalProject"
+output: pdf_document
+---
+
+```{r}
+final_project = read.csv("final_project.csv")
+final_project <- data.frame(final_project)
+asset1 <- final_project[,2]
+asset2 <- final_project[,3]
+asset3 <- final_project[,4]
+
+library(dplyr)
+
+
+original_data <- data.frame(final_project)
+asset1 <- original_data[,2]
+asset2 <- original_data[,3]
+asset3 <- original_data[,4]
+```
+
+#2.3
+#3-min backward return
+```{r}
+original_data <- mutate(original_data, Asset_1_BRet_3 = (asset1 - lag(asset1,n=3)) / lag(asset1,n=3))
+for(i in 1:3){
+  original_data$Asset_1_BRet_3[i] = (asset1[i] - asset1[1])/asset1[1]
+}
+
+original_data <- mutate(original_data, Asset_2_BRet_3 = (asset2 - lag(asset2,n=3)) / lag(asset2,n=3))
+for(i in 1:3){
+  original_data$Asset_2_BRet_3[i] = (asset2[i] - asset2[1])/asset2[1]
+}
+
+original_data <- mutate(original_data, Asset_3_BRet_3 = (asset3 - lag(asset3,n=3)) / lag(asset3,n=3))
+for(i in 1:3){
+  original_data$Asset_3_BRet_3[i] = (asset3[i] - asset3[1])/asset3[1]
+}
+```
+
+#10-min backward return
+```{r}
+original_data <- mutate(original_data, Asset_1_BRet_10 = (asset1 - lag(asset1,n=10)) / lag(asset1,n=10))
+for(i in 1:10){
+  original_data$Asset_1_BRet_10[i] = (asset1[i] - asset1[1])/asset1[1]
+}
+
+original_data <- mutate(original_data, Asset_2_BRet_10 = (asset2 - lag(asset2,n=10)) / lag(asset2,n=10))
+for(i in 1:10){
+  original_data$Asset_2_BRet_10[i] = (asset2[i] - asset2[1])/asset2[1]
+}
+
+original_data <- mutate(original_data, Asset_3_BRet_10 = (asset3 - lag(asset3,n=10)) / lag(asset3,n=10))
+for(i in 1:10){
+  original_data$Asset_3_BRet_10[i] = (asset3[i] - asset3[1])/asset3[1]
+}
+```
+
+#30-min backward return
+```{r}
+original_data <- mutate(original_data, Asset_1_BRet_30 = (asset1 - lag(asset1,n=30)) / lag(asset1,n=30))
+for(i in 1:30){
+  original_data$Asset_1_BRet_30[i] = (asset1[i] - asset1[1])/asset1[1]
+}
+
+original_data <- mutate(original_data, Asset_2_BRet_30 = (asset2 - lag(asset2,n=30)) / lag(asset2,n=30))
+for(i in 1:30){
+  original_data$Asset_2_BRet_30[i] = (asset2[i] - asset2[1])/asset2[1]
+}
+
+original_data <- mutate(original_data, Asset_3_BRet_30 = (asset3 - lag(asset3,n=30)) / lag(asset3,n=30))
+for(i in 1:30){
+  original_data$Asset_3_BRet_30[i] = (asset3[i] - asset3[1])/asset3[1]
+}
+```
+
+```{r}
+original_data <- round(original_data[5:13], digits = 4)
+```
+
+```{r}
+original_data <- mutate(original_data, r_f10 = (lead(asset1, n = 10) - asset1) / asset1)
+for(i in 1:10){
+  original_data$r_f10[length(asset1) - 10 + i] = (asset1[524160] - asset1[length(asset1) - 10 + i]) / asset1[length(asset1) - 10 + i]
+}
+train = original_data[1:366912,]
+test = original_data[366913:524160,]
+linear_regression_model <- lm(r_f10 ~ ., data = train)
+linear_reg_test_pred = predict.lm(linear_regression_model, test)
+linear_reg_train_pred = predict.lm(linear_regression_model, train)
+
+summary(linear_regression_model)
+
+new_rf_pred1 = c()
+new_rf_pred2 = c()
+for(i in 1:366912) {
+  new_rf_pred1[i] = linear_reg_train_pred[i]
+}
+cor(train$r_f10, new_rf_pred1)
+for(i in 1:157248) {
+  new_rf_pred2[i] = linear_reg_test_pred[i]
+}
+cor(test$r_f10, new_rf_pred2)
+```
+```{r}
+omega = 21*24*60
+three_week_bwrc_train = c()
+three_week_bwrc_test = c()
+new_rf10_train = data.frame(train$r_f10)
+new_rf10_test = data.frame(test$r_f10)
+new_rf_pred1 = data.frame(new_rf_pred1)
+new_rf_pred2 = data.frame(new_rf_pred2)
+for(i in 1:366912) {
+  if (i <= omega)
+    three_week_bwrc_train[i] = cor(new_rf10_train[1:i,],new_rf_pred1[1:i,])
+   
+  if (i > omega)
+    three_week_bwrc_train[i] = cor(new_rf10_train[(i-omega):i,],new_rf_pred1[(i-omega):i,])
+}
+
+for(i in 1:157248) {
+if (i <= omega)
+    three_week_bwrc_test[i] = cor(new_rf10_test[1:i,],new_rf_pred2[1:i,])
+   
+  if (i > omega)
+    three_week_bwrc_test[i] = cor(new_rf10_test[(i-omega):i,],new_rf_pred2[(i-omega):i,])
+}
+```
+```{r}
+library(ggplot2)
+colors <- c("three_week_bwrc_test" = "blue", "three_week_bwrc_train" = "red")
+three_week_bwrc_train <- data.frame(three_week_bwrc_train)
+three_week_bwrc_test <- data.frame(three_week_bwrc_test)
+ggplot() + geom_line(data = three_week_bwrc_train,aes(x=1:366912,y=three_week_bwrc_train,color = "three_week_bwrc_train"))+ 
+  geom_line(data = three_week_bwrc_test,aes(x=1:157248,y=three_week_bwrc_test,color = "three_week_bwrc_test")) +xlab("t") + ylab("cor") +labs(
+         color = "Legend") +
+    scale_color_manual(values = colors)
+```
+Yes, the backward returns of Assets 2 and 3 are generally significant in predicting the forward return of Asset1 except for the 30 mins backward returns of Asset3. In-sample correlation is 0.06786533 while out-of-sample correlation is 0.04068153. Observing the correlation vs time plot, we can see the correlation structure is relatively stable at the beginning and end of the year, there are huge fluctuations in the middle of the year. To sum up, the correlation structure is not stationary over the year.
+
+## part(2.4)
+
+```{r}
+data <- original_data
+
+library(FNN)
+
+knntrainid <- c(1:floor(0.7*nrow(data)))
+
+k_range = c(5,25,125,200)
+
+knn_train = data[knntrainid,]
+
+knn_test = data[-knntrainid,]
+trainMSE = c()
+
+for(i in 1:length(k_range)){
+  knnTrain <- knn.reg(train = knn_train,
+                      y = knn_train$r_f10,
+                      test = knn_train,
+                      k = k_range[i])
+trainMSE[i] <- mean((knnTrain$pred - knn_train$r_f10)^2)
+}
+
+
+testMSE = c()
+
+
+for(i in 1:length(k_range)){
+  knnTest <- knn.reg(train = knn_train,
+                      y = knn_train$r_f10,
+                      test = knn_test,
+                      k = k_range[i])
+  testMSE[i] <-  mean((knnTest$pred - knn_test$r_f10)^2)  
+}
+par(mfcol = c(1,2))
+plot(k_range,trainMSE)
+plot(k_range,testMSE)
+
+
+knn_model_1 = knn.reg(train = knn_train,
+                           y = knn_train$r_f10,
+                           test = knn_train,
+                           k = 5)
+
+knn_model_2 = knn.reg(train = knn_train,
+                    y = knn_train$r_f10,
+                    test = knn_test,
+                    k = 5)
+```
+```{r}
+cor(knn_model_1$pred,knn_train$r_f10)
+cor(knn_model_2$pred,knn_test$r_f10)
+```
+
+According to the validation process, we choose K = 5 to train our knn model. We can see that the in and out sample correlation is much more higher than the other model since knn introduces non-linearity to the model and it has no pre-assumption regarding the data.
+
+
+
+### part(2.5)
+```{r}
+rf10 = read.csv("rf10.csv")
+m = matrix(0,nrow = 524160,ncol = 14*3)
+h = c(3,10,30,60,120,180,240,360,480,600,720,960,1200,1440)
+k = 1
+for (i in h){
+   for(j in 1:524160){
+      if(j <= i+1){
+        m[j,k] = (asset1[j]-asset1[1])/asset1[1]
+        m[j,k+1] = (asset2[j]-asset2[1])/asset2[1]
+        m[j,k+2] = (asset3[j]-asset3[1])/asset3[1]
+      } else{
+        m[j,k] = (asset1[j]-asset1[j-i])/asset1[j-i]
+        m[j,k+1] = (asset2[j]-asset2[j-i])/asset2[j-i]
+        m[j,k+2] = (asset3[j]-asset3[j-i])/asset3[j-i]
+      }
+    }
+  k = k+3
+}
+allbret <- data.frame(m)
+names(allbret) = c("1-3","2-3",'3-3','1-10','2-10','3-10','1-30','2-30','3-30',
+                   '1-60','2-60','3-60','1-120','2-120','3-120','1-180','2-180',
+                   '3-180','1-240','2-240','3-240','1-360','2-360','3-360','1-480',
+                   '2-480','3-480','1-600','2-600','3-600','1-720','2-720','3-720',
+                   '1-960','2-960','3-960','1-1200','2-1200','3-1200',
+                   '1-1440','2-1440','3-1440')
+allbret$rf = rf10
+```
+
+
+```{r}
+library(glmnet)
+
+smp_size = 1:floor(0.7 * nrow(allbret))
+allbret$rf = unlist(allbret$rf)
+train = allbret[smp_size, ]
+test = allbret[-smp_size, ]
+X_train = model.matrix(rf ~ ., data=train)[ ,-1]
+y_train = train$rf
+X_test = model.matrix(rf ~ ., data=test)[ ,-1]
+y_test = test$rf
+```
+
+
+```{r}
+ridge_mse = c()
+lasso_mse = c()
+
+ridge.mod = glmnet(X_train, y_train, alpha = 0)
+lasso.mod = glmnet(X_train, y_train, alpha = 1)
+
+ridge_lam = ridge.mod$lambda
+lasso_lam = lasso.mod$lambda
+
+for (i in 1:length(ridge_lam)) {
+  lam = ridge_lam[i]
+  ridge_pred = predict(ridge.mod, s = lam, newx = X_train)
+  ridge_mse[i] = mean((y_train - ridge_pred)^2)
+}
+for (i in 1:length(lasso_lam)) {
+  lam = lasso_lam[i]
+  lasso_pred = predict(lasso.mod, s = lam, newx = X_train)
+  lasso_mse[i] = mean((y_train - lasso_pred)^2)
+}
+# ridge train
+best_ridge_lam_index = which(ridge_mse == min(ridge_mse))
+ridge_pred = predict(ridge.mod, s = ridge_lam[best_ridge_lam_index], newx = X_train)
+ridge_cor = cor(ridge_pred, y_train)
+min(ridge_mse)
+ridge_lam[best_ridge_lam_index]
+ridge_cor
+# ridge test
+best_ridge_lam_index = which(ridge_mse == min(ridge_mse))
+ridge_pred = predict(ridge.mod, s = ridge_lam[best_ridge_lam_index], newx = X_test)
+ridge_cor = cor(ridge_pred, y_test)
+min(ridge_mse)
+ridge_lam[best_ridge_lam_index]
+ridge_cor
+# lasso train
+best_lasso_lam_index = which(lasso_mse == min(lasso_mse))
+lasso_pred = predict(lasso.mod, s = lasso_lam[best_lasso_lam_index], newx = X_train)
+lasso_cor = cor(lasso_pred, y_train)
+min(lasso_mse)
+lasso_lam[best_lasso_lam_index]
+lasso_cor
+# lasso test
+best_lasso_lam_index = which(lasso_mse == min(lasso_mse))
+lasso_pred = predict(lasso.mod, s = lasso_lam[best_lasso_lam_index], newx = X_test)
+lasso_cor = cor(lasso_pred, y_test)
+min(lasso_mse)
+lasso_lam[best_lasso_lam_index]
+lasso_cor
+```
+  By iterating through all the lambda values in the fitted ridge and lasso models, we find the best lambda values for both models with the least training and testing mse. Based on these lambda values, we then fit the predictions and got the following correlations.
+  For ridge:
+    in-sample correlation: 0.08487186
+    out-of-sample correlation: 0.03928749
+  For lasso:
+    in-sample correlation: 0.08490903
+    out-of-sample correlation: 0.0391276
+
+### part(2.6)
+```{r}
+library(pls)
+PCR_train_mse = c()
+PCR_test_mse = c()
+PCR_mod = pcr(rf ~ ., data = train, scale = F, validation = "none")
+summary(PCR_mod)
+
+for (i in 1:PCR_mod$ncomp) {
+  train_pred = predict(PCR_mod, train, ncomp = i)
+  PCR_train_mse[i] = mean((y_train - train_pred)^2)
+  
+  test_pred = predict(PCR_mod, test, ncomp = i)
+  PCR_test_mse[i] = mean((y_test - test_pred)^2)
+}
+
+best_train_ncomp = which(PCR_train_mse == min(PCR_train_mse))
+min(PCR_train_mse)
+best_train_ncomp
+PCR_train_pred = predict(PCR_mod, train, ncomp = best_train_ncomp)
+PCR_train_cor = cor(PCR_train_pred, train$rf)
+PCR_train_cor
+
+best_test_ncomp = which(PCR_test_mse == min(PCR_test_mse))
+min(PCR_test_mse)
+best_test_ncomp
+PCR_test_pred = predict(PCR_mod, test, ncomp = best_test_ncomp)
+PCR_test_cor = cor(PCR_test_pred, test$rf)
+PCR_test_cor
+```
+  We iterated through all the possible number of components in the model: 42 components. For each number, we calculate it's training and testing mse. We then find the number of components with the least mse's, and fit the prediction based on these values and calculated the correlations:
+  The in-sample correlation is 0.08491075, when the number of components is 42. The out-of-sample correlation is 0.03907369, when the number of components is 39.

@@ -1,0 +1,251 @@
+---
+title: "hm9"
+author: "Ning Liang"
+date: "2020/11/29"
+output: pdf_document
+---
+(1)
+```{r}
+library(MASS)
+library(e1071)
+set.seed(6789)
+crab <- split.data.frame(crabs,crabs$sex)
+
+female <- crab$F
+male <- crab$M
+train_id_F <- sample(nrow(female),floor(0.8*(nrow(female))))
+train_id_M <- sample(nrow(male), floor(0.8*(nrow(male))))
+train_F <- female[train_id_F,]
+train_M <- male[train_id_M,]
+test_F <- female[-train_id_F,]
+test_M <- male[-train_id_M,]
+train <- rbind(train_F,train_M)
+test <- rbind(test_F, test_M)
+train <- train[,-which(names(train)%in%c("sex","index"))]
+test <- test[,-which(names(test)%in%c("sex","index"))]
+
+dat = rbind(train,test)
+
+cost_linear = c(0.0001,0.001,0.01,0.1,1,10,100)
+
+train_err_linear = c()
+test_err_linear = c()
+j = 1
+for (i in cost_linear){
+svmfit <- svm(sp ~., data = train, kernel = "linear", cost = i,scale =FALSE)
+train_err_linear[j] = mean(train$sp != predict(svmfit,train))
+test_err_linear[j] = mean(test$sp != predict(svmfit,test))
+j = j+1
+}
+
+par(mfcol = c(1,2))
+plot(cost_linear,train_err_linear,type = "b")
+plot(cost_linear,test_err_linear, type = "b")
+```
+```{r}
+set.seed(1)
+tune.linear <- tune(svm, sp~., data =dat, kernel = "linear", ranges = list(cost = c(0.0001,0.001,0.01,0.1,1,10,100)) )
+
+#accessing corresponding error through summary(tune.linear): err = c(0.585,0.570,0.360,0.090,0.000,0.000,0.000)
+plot(cost_linear,c(0.585,0.570,0.360,0.090,0.000,0.000,0.000), type = "b")
+```
+We can see that all three plots suggest a cost larger or equal to 1. When we successfully choose the correct cost, the model does a great job based on the testing data in out data set.
+
+(2)
+
+```{r}
+tune.rad <- tune(svm, sp~., data = train, kernel = "radial",
+                 ranges = list(cost = c(0.1,1,10,100,1000),
+                               gamma = c(0.5,1,2,3,4)))
+with(tune.rad$performances, {
+plot(error[gamma == 0.5] ~ cost[gamma == 0.5],
+type = "o", col = rainbow(5)[1], ylab = "CV error", xlab = "cost")
+lines(error[gamma == 1] ~ cost[gamma == 1],
+type = "o", col = rainbow(5)[2])
+lines(error[gamma == 2] ~ cost[gamma == 2],
+type = "o", col = rainbow(5)[3])
+lines(error[gamma == 3] ~ cost[gamma == 3],
+type = "o", col = rainbow(5)[4])
+lines(error[gamma == 4] ~ cost[gamma == 4],
+type = "o", col = rainbow(5)[5])
+})
+legend('top', horiz = T, legend = c(0.5, 1:4), col = rainbow(5),
+lty = 1, cex = .75, title = "gamma")
+```
+```{r}
+
+tune.poly <- tune(svm, sp~., data = train, kernel = "polynomial",
+                 ranges = list(cost = c(0.1,1,10,100,1000),
+                               degree = c(1,2,3,4,5)))
+with(tune.poly$performances, {
+plot(error[degree == 1] ~ cost[degree == 1],
+type = "o", col = rainbow(5)[1], ylab = "CV error", xlab = "cost")
+lines(error[degree == 2] ~ cost[degree == 2],
+type = "o", col = rainbow(5)[2])
+lines(error[degree == 3] ~ cost[degree == 3],
+type = "o", col = rainbow(5)[3])
+lines(error[degree == 4] ~ cost[degree== 4],
+type = "o", col = rainbow(5)[4])
+lines(error[degree == 5] ~ cost[degree == 5],
+type = "o", col = rainbow(5)[5])
+})
+legend('top', horiz = T, legend = c(1, 1:4), col = rainbow(5),
+lty = 1, cex = .75, title = "degree")
+```
+The error plots for CV show a more informative result, where the smallest gamma and degree = 1 give the lowest error, meaning that the decision boundary is close to a linear one.
+
+```{r}
+cost_non = c(0.1,1,10,100,1000)
+train_err_rad_1 = c()
+test_err_rad_1 = c()
+train_err_rad_2 = c()
+test_err_rad_2 = c()
+train_err_rad_3 = c()
+test_err_rad_3 = c()
+train_err_rad_4 = c()
+test_err_rad_4 = c()
+train_err_rad_5 = c()
+test_err_rad_5 = c()
+
+j=1
+for (i in cost_non){
+svmfit_rad <- svm(sp ~., data = train, kernel = "radial", cost = i,gamma = 0.5,scale =FALSE)
+train_err_rad_1[j] = mean(train$sp != predict(svmfit_rad,train))
+test_err_rad_1[j] = mean(test$sp != predict(svmfit_rad,test))
+j = j+1
+}
+
+
+j=1
+for (i in cost_non){
+svmfit_rad <- svm(sp ~., data = train, kernel = "radial", cost = i,gamma = 1,scale =FALSE)
+train_err_rad_2[j] = mean(train$sp != predict(svmfit_rad,train))
+test_err_rad_2[j] = mean(test$sp != predict(svmfit_rad,test))
+j = j+1
+}
+
+j=1
+for (i in cost_non){
+svmfit_rad <- svm(sp ~., data = train, kernel = "radial", cost = i,gamma = 2,scale =FALSE)
+train_err_rad_3[j] = mean(train$sp != predict(svmfit_rad,train))
+test_err_rad_3[j] = mean(test$sp != predict(svmfit_rad,test))
+j = j+1
+}
+
+j=1
+for (i in cost_non){
+svmfit_rad <- svm(sp ~., data = train, kernel = "radial", cost = i,gamma = 3,scale =FALSE)
+train_err_rad_4[j] = mean(train$sp != predict(svmfit_rad,train))
+test_err_rad_4[j] = mean(test$sp != predict(svmfit_rad,test))
+j = j+1
+}
+
+j=1
+for (i in cost_non){
+svmfit_rad <- svm(sp ~., data = train, kernel = "radial", cost = i,gamma = 4,scale =FALSE)
+train_err_rad_5[j] = mean(train$sp != predict(svmfit_rad,train))
+test_err_rad_5[j] = mean(test$sp != predict(svmfit_rad,test))
+j = j+1
+}
+par(mfcol = c(1,2))
+plot(train_err_rad_1 ~ cost_non,
+type = "o", col = rainbow(5)[1], ylab = "train error", xlab = "cost")
+lines(train_err_rad_2 ~ cost_non,
+type = "o", col = rainbow(5)[2])
+lines(train_err_rad_3 ~ cost_non,
+type = "o", col = rainbow(5)[3])
+lines(train_err_rad_4 ~ cost_non,
+type = "o", col = rainbow(5)[4])
+lines(train_err_rad_5 ~ cost_non,
+type = "o", col = rainbow(5)[5])
+
+plot(test_err_rad_1 ~ cost_non,
+type = "o", col = rainbow(5)[1], ylab = "test error", xlab = "cost")
+lines(test_err_rad_2 ~ cost_non,
+type = "o", col = rainbow(5)[2])
+lines(test_err_rad_3 ~ cost_non,
+type = "o", col = rainbow(5)[3])
+lines(test_err_rad_4 ~ cost_non,
+type = "o", col = rainbow(5)[4])
+lines(test_err_rad_5 ~ cost_non,
+type = "o", col = rainbow(5)[5])
+```
+```{r}
+train_err_p_1 = c()
+test_err_p_1 = c()
+train_err_p_2 = c()
+test_err_p_2 = c()
+train_err_p_3 = c()
+test_err_p_3 = c()
+train_err_p_4 = c()
+test_err_p_4 = c()
+train_err_p_5 = c()
+test_err_p_5 = c()
+
+
+j=1
+for (i in cost_linear){
+svmfit_poly <- svm(sp ~., data = train, kernel = "polynomial", cost = i,degree = 1,scale =FALSE)
+train_err_p_1[j] = mean(train$sp != predict(svmfit_poly,train))
+test_err_p_1[j] = mean(test$sp != predict(svmfit_poly,test))
+j = j+1
+}
+
+
+j=1
+for (i in cost_linear){
+svmfit_poly <- svm(sp ~., data = train, kernel = "polynomial", cost = i,degree = 2,scale =FALSE)
+train_err_p_2[j] = mean(train$sp != predict(svmfit_poly,train))
+test_err_p_2[j] = mean(test$sp != predict(svmfit_poly,test))
+j = j+1
+}
+
+j=1
+for (i in cost_linear){
+svmfit_poly <- svm(sp ~., data = train, kernel = "polynomial", cost = i,degree = 3,scale =FALSE)
+train_err_p_3[j] = mean(train$sp != predict(svmfit_poly,train))
+test_err_p_3[j] = mean(test$sp != predict(svmfit_poly,test))
+j = j+1
+}
+
+j=1
+for (i in cost_linear){
+svmfit_poly <- svm(sp ~., data = train, kernel = "polynomial", cost = i,degree = 4,scale =FALSE)
+train_err_p_4[j] = mean(train$sp != predict(svmfit_poly,train))
+test_err_p_4[j] = mean(test$sp != predict(svmfit_poly,test))
+j = j+1
+}
+
+j=1
+for (i in cost_linear){
+svmfit_poly <- svm(sp ~., data = train, kernel = "polynomial", cost = i,degree = 5,scale =FALSE)
+train_err_p_5[j] = mean(train$sp != predict(svmfit_poly,train))
+test_err_p_5[j] = mean(test$sp != predict(svmfit_poly,test))
+j = j+1
+}
+par(mfcol = c(1,2))
+plot(train_err_p_1 ~ cost_linear,
+type = "o", col = rainbow(5)[1], ylab = "train error", xlab = "cost")
+lines(train_err_p_2 ~ cost_linear,
+type = "o", col = rainbow(5)[2])
+lines(train_err_p_3 ~ cost_linear,
+type = "o", col = rainbow(5)[3])
+lines(train_err_p_4 ~ cost_linear,
+type = "o", col = rainbow(5)[4])
+lines(train_err_p_5 ~ cost_linear,
+type = "o", col = rainbow(5)[5])
+
+plot(test_err_p_1 ~ cost_linear,
+type = "o", col = rainbow(5)[1], ylab = "test error", xlab = "cost")
+lines(test_err_p_2 ~ cost_linear,
+type = "o", col = rainbow(5)[2])
+lines(test_err_p_3 ~ cost_linear,
+type = "o", col = rainbow(5)[3])
+lines(test_err_p_4 ~ cost_linear,
+type = "o", col = rainbow(5)[4])
+lines(test_err_p_5 ~ cost_linear,
+type = "o", col = rainbow(5)[5])
+```
+
+However, the error plots of normal validation give some identical straight lines, except for the lowest gamma and degree. This means that for all gamma and degrees we choose, as long as the cost is high, we can always get a perfect boundary based on our given data set. I don't think this result is convincing, but I don't know why this is not working.
+
